@@ -1,0 +1,15 @@
+# Environment & secrets
+.env
+*.local.json
+
+# .NET
+server/**/bin/
+server/**/obj/
+server/**/TestResults/
+*.user
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store

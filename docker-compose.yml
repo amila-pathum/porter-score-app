@@ -1,0 +1,47 @@
+# Porter local stack.
+#   docker compose up -d db            → PostgreSQL only (run API + client on the host for development)
+#   docker compose up --build          → full stack: db + api + web on http://localhost:8080
+# Configure via a .env file next to this one (see .env.example).
+name: porter
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: porter
+      POSTGRES_USER: porter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-porter}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - porter-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U porter -d porter"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: Host=db;Port=5432;Database=porter;Username=porter;Password=${POSTGRES_PASSWORD:-porter}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-compose-signing-key-change-me-0123456789}
+      App__PublicUrl: ${PUBLIC_URL:-http://localhost:8080}
+      # Plain HTTP on localhost; set to true behind HTTPS.
+      Auth__SecureCookies: ${SECURE_COOKIES:-false}
+      Database__MigrateOnStartup: "true"
+      Seed__DemoData: ${SEED_DEMO_DATA:-true}
+
+  web:
+    build: ./porter-client
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+
+volumes:
+  porter-db:
